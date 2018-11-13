@@ -51,9 +51,6 @@ char comm = '\0'; //Command to test an actuator or sensor
 float volts = 0;  //Variable to store current voltage from CO2 sensor
 float co2 = 0;    //Variable to store CO2 value
 unsigned long previousMillis = 0;
-unsigned long previousMillis1 = 0;
-unsigned long previousMillis2 = 0;
-unsigned long previousMillis3 = 0;
 enum trafficLightColor
 {
     RED = 100,
@@ -307,15 +304,6 @@ bool isTrafficPresentOnLine2()
     return isInfraredSensor4On() || isInfraredSensor5On() || isInfraredSensor6On();
 }
 
-bool lineOne()
-{
-    return digitalRead(CNY1) == LOW || digitalRead(CNY2) == LOW || digitalRead(CNY3) == LOW;
-}
-bool lineTwo()
-{
-    return digitalRead(CNY4) == LOW || digitalRead(CNY5) == LOW || digitalRead(CNY6) == LOW;
-}
-
 trafficLane getCurrentTrafficLane()
 {
     if (isTrafficPresentOnLine1() && !isTrafficPresentOnLine2())
@@ -335,111 +323,48 @@ trafficLane getCurrentTrafficLane()
 
 void setTrafficLight1Sequence(unsigned long currentMillis)
 {
-    switch (nextTrafficLight1State)
+    if (currentMillis - previousMillis <= FIVESECONDS)
     {
-    case RED:
-        if ((unsigned long)(currentMillis - previousMillis1 >= FIVESECONDS))
-        {
-            previousMillis1 = currentMillis; // save the last time you changed the light
-            nextTrafficLight1State = GREEN;  // set the next state
-            setTrafficLight1ToColor(GREEN);
-        }
-        break;
-    case YELLOW:
-        if ((unsigned long)(currentMillis - previousMillis1 >= ONESECOND))
-        {
-            previousMillis1 = currentMillis; // save the last time you changed the light
-            nextTrafficLight1State = RED;    // set the next state
-            setTrafficLight1ToColor(RED);
-        }
-        break;
-    case GREEN:
-        if ((unsigned long)(currentMillis - previousMillis1 >= FIVESECONDS))
-        {
-            previousMillis1 = currentMillis; // save the last time you changed the light
-            nextTrafficLight1State = YELLOW; // set the next state
-            setTrafficLight1ToColor(YELLOW);
-        }
-        break;
-    default:
-        previousMillis1 = currentMillis; // save the last time you changed the light
-        nextTrafficLight1State = GREEN;  // set the next state
         setTrafficLight1ToColor(GREEN);
-        break;
+    }
+    else if (currentMillis - previousMillis <= SIXSECONDS)
+    {
+        setTrafficLight1ToColor(YELLOW);
+    }
+    else if (currentMillis - previousMillis <= 2 * SIXSECONDS)
+    {
+        setTrafficLight1ToColor(RED);
+    }
+    else
+    {
+        previousMillis = currentMillis;
     }
 }
 
 void setTrafficLight2Sequence(unsigned long currentMillis)
 {
-    switch (nextTrafficLight2State)
+    if (currentMillis - previousMillis <= SIXSECONDS)
     {
-    case RED:
-        if ((unsigned long)(currentMillis - previousMillis2 >= FIVESECONDS))
-        {
-            previousMillis2 = currentMillis; // save the last time you changed the light
-            nextTrafficLight2State = GREEN;  // set the next state
-            setTrafficLight2ToColor(GREEN);
-        }
-        break;
-    case YELLOW:
-        if ((unsigned long)(currentMillis - previousMillis2 >= ONESECOND))
-        {
-            previousMillis2 = currentMillis; // save the last time you changed the light
-            nextTrafficLight2State = RED;    // set the next state
-            setTrafficLight2ToColor(RED);
-        }
-        break;
-    case GREEN:
-        if ((unsigned long)(currentMillis - previousMillis2 >= FIVESECONDS))
-        {
-            previousMillis2 = currentMillis; // save the last time you changed the light
-            nextTrafficLight2State = YELLOW; // set the next state
-            setTrafficLight2ToColor(YELLOW);
-        }
-        break;
-    default:
-        previousMillis2 = currentMillis; // save the last time you changed the light
-        nextTrafficLight2State = RED;    // set the next state
         setTrafficLight2ToColor(RED);
-        break;
+    }
+    else if (currentMillis - previousMillis <= 2 * FIVESECONDS)
+    {
+        setTrafficLight2ToColor(GREEN);
+    }
+    else if (currentMillis - previousMillis <= 2 * SIXSECONDS)
+    {
+        setTrafficLight2ToColor(YELLOW);
+    }
+    else
+    {
+        previousMillis = currentMillis;
     }
 }
 
-bool setTrafficLightsSequence(unsigned long currentMillis)
+void setTrafficLightsSequence(unsigned long currentMillis)
 {
-    currentTrafficLane = getCurrentTrafficLane();
-    switch (currentTrafficLane)
-    {
-    case ONE:                            // Traffic only on lane one, allow the right of way
-        nextTrafficLight1State = RED;    // Set on RED to stay on GREEN
-        nextTrafficLight2State = YELLOW; // Set on RED to stay on GREEN
-        setTrafficLight1Sequence(currentMillis);
-        setTrafficLight2Sequence(currentMillis);
-
-        break;
-    case TWO:                            // Traffic only on lane two, allow the right of way
-        nextTrafficLight1State = YELLOW; // Set on RED to stay on GREEN
-        nextTrafficLight2State = RED;    // Set on RED to stay on GREEN
-        setTrafficLight1Sequence(currentMillis);
-        setTrafficLight2Sequence(currentMillis);
-        break;
-    case BOTH: // Traffic on both lanes, let lane one two cycles
-        if (currentSequenceNumber < 2)
-        {
-            setTrafficLight1Sequence(currentMillis);
-            currentSequenceNumber++;
-        }
-        else
-        {
-            setTrafficLight2Sequence(currentMillis);
-            currentSequenceNumber = 0;
-        }
-        break;
-    default: // No traffic, switch every cycle
-        setTrafficLight1Sequence(currentMillis);
-        setTrafficLight2Sequence(currentMillis);
-        break;
-    }
+    setTrafficLight1Sequence(currentMillis);
+    setTrafficLight2Sequence(currentMillis);
 }
 
 void setup(void)
