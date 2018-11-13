@@ -1,2 +1,2 @@
 # smart-city-arduino
-Smarti city sketch in arduino
+Smart city sketch in arduino
