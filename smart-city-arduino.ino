@@ -57,9 +57,7 @@ enum trafficLightColor
     YELLOW = 101,
     GREEN = 102,
     OFF = 103
-};                                              //Traffic light color
-trafficLightColor nextTrafficLight1State = OFF; //Traffic light 1 state
-trafficLightColor nextTrafficLight2State = OFF; //Traffic light 2 state
+}; //Traffic light color
 enum trafficLane
 {
     ONE = 200,
@@ -363,8 +361,57 @@ void setTrafficLight2Sequence(unsigned long currentMillis)
 
 void setTrafficLightsSequence(unsigned long currentMillis)
 {
-    setTrafficLight1Sequence(currentMillis);
-    setTrafficLight2Sequence(currentMillis);
+    currentTrafficLane = getCurrentTrafficLane();
+    switch (currentTrafficLane)
+    {
+    case ONE:
+        if (currentMillis - previousMillis >= 2 * SIXSECONDS)
+        {
+            setTrafficLight1ToColor(GREEN);
+            setTrafficLight2ToColor(YELLOW);
+            setTrafficLight2ToColor(RED);
+            previousMillis = currentMillis;
+        }
+        break;
+    case TWO:
+        if (currentMillis - previousMillis >= 2 * SIXSECONDS)
+        {
+            setTrafficLight1ToColor(YELLOW);
+            setTrafficLight1ToColor(RED);
+            setTrafficLight2ToColor(GREEN);
+            previousMillis = currentMillis;
+        }
+        break;
+    case BOTH:
+        if (currentSequenceNumber < 2)
+        {
+            if (currentMillis - previousMillis >= SIXSECONDS)
+            {
+                setTrafficLight1ToColor(GREEN);
+                setTrafficLight2ToColor(YELLOW);
+                setTrafficLight2ToColor(RED);
+                previousMillis = currentMillis;
+                currentSequenceNumber++;
+            }
+        }
+        else
+        {
+            if (currentMillis - previousMillis >= SIXSECONDS)
+            {
+                setTrafficLight1ToColor(YELLOW);
+                setTrafficLight1ToColor(RED);
+                setTrafficLight2ToColor(GREEN);
+                previousMillis = currentMillis;
+                currentSequenceNumber = 0;
+            }
+        }
+
+        break;
+    case NONE:
+        setTrafficLight1Sequence(currentMillis);
+        setTrafficLight2Sequence(currentMillis);
+        break;
+    }
 }
 
 void setup(void)
