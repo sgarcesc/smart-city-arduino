@@ -51,6 +51,8 @@ char comm = '\0'; //Command to test an actuator or sensor
 float volts = 0;  //Variable to store current voltage from CO2 sensor
 float co2 = 0;    //Variable to store CO2 value
 unsigned long previousMillis = 0;
+unsigned long previousMillisBlink = 0;
+unsigned long previousMillisMaintenance = 0;
 enum trafficLightColor
 {
     RED = 100,
@@ -64,9 +66,17 @@ enum trafficLane
     TWO = 201,
     BOTH = 203,
     NONE = 204
-};
-trafficLane currentTrafficLane = NONE;
+};                                      //Traffic lanes
 unsigned int currentSequenceNumber = 0; //Current traffic light sequence
+enum trafficLightsMode
+{
+    REGULAR = 300,
+    MAINTENANCE = 301,
+    NIGHT = 302,
+    PRIORITY = 303
+};
+bool isInMaintenance = false;
+bool changeToMaintenance = false;
 
 //Library definitions
 LiquidCrystal_I2C lcd(0x27, 16, 4); //Set the LCD address to 0x27 for a 16 chars and 4 line display
@@ -232,33 +242,33 @@ void setTrafficLight2ToColor(trafficLightColor color)
 
 void setTrafficLight1BlinkToColor(unsigned long currentMillis, trafficLightColor color)
 {
-    if ((unsigned long)(currentMillis - previousMillis <= HALFSECOND))
+    if ((unsigned long)(currentMillis - previousMillisBlink <= HALFSECOND))
     {
         setTrafficLight1ToColor(color);
     }
-    else if ((unsigned long)(currentMillis - previousMillis <= ONESECOND))
+    else if ((unsigned long)(currentMillis - previousMillisBlink <= ONESECOND))
     {
         setTrafficLight1ToColor(OFF);
     }
     else
     {
-        previousMillis = currentMillis;
+        previousMillisBlink = currentMillis;
     }
 }
 
 void setTrafficLight2BlinkToColor(unsigned long currentMillis, trafficLightColor color)
 {
-    if ((unsigned long)(currentMillis - previousMillis <= HALFSECOND))
+    if ((unsigned long)(currentMillis - previousMillisBlink <= HALFSECOND))
     {
         setTrafficLight2ToColor(color);
     }
-    else if ((unsigned long)(currentMillis - previousMillis <= ONESECOND))
+    else if ((unsigned long)(currentMillis - previousMillisBlink <= ONESECOND))
     {
         setTrafficLight2ToColor(OFF);
     }
     else
     {
-        previousMillis = currentMillis;
+        previousMillisBlink = currentMillis;
     }
 }
 
@@ -302,6 +312,82 @@ bool isTrafficPresentOnLine2()
     return isInfraredSensor4On() || isInfraredSensor5On() || isInfraredSensor6On();
 }
 
+bool isTrafficLight1ButtonPressed()
+{
+    return digitalRead(P1) == HIGH;
+}
+
+bool isTrafficLight2ButtonPressed()
+{
+    return digitalRead(P2) == HIGH;
+}
+
+bool areBothTrafficLightButtonsPressed()
+{
+    return isTrafficLight1ButtonPressed() && isTrafficLight2ButtonPressed();
+}
+
+bool isInMaintenanceMode(unsigned long currentMillis)
+{
+    if (areBothTrafficLightButtonsPressed())
+    {
+        if (currentMillis - previousMillisMaintenance >= FIVESECONDS && changeToMaintenance == true)
+        {
+            changeToMaintenance = false;
+            if (isInMaintenance)
+            {
+                isInMaintenance = false;
+                return isInMaintenance;
+            }
+            isInMaintenance = true;
+            return isInMaintenance;
+        }
+    }
+    else
+    {
+        changeToMaintenance = true;
+        previousMillisMaintenance = currentMillis;
+    }
+}
+
+int getLightSensorFromTrafficLight1Reading()
+{
+    return analogRead(LDR1);
+}
+
+int getLightSensorFromTrafficLight2Reading()
+{
+    return analogRead(LDR2);
+}
+
+bool isLightSensorFromTrafficLight1InNightmode()
+{
+    return getLightSensorFromTrafficLight1Reading() < 100;
+}
+
+bool isLightSensorFromTrafficLight2InNightmode()
+{
+    return getLightSensorFromTrafficLight2Reading() < 100;
+}
+
+bool isIndNightMode()
+{
+    return isLightSensorFromTrafficLight1InNightmode() && isLightSensorFromTrafficLight2InNightmode();
+}
+
+trafficLightsMode getCurrentTrafficLigthsMode(unsigned long currentMillis)
+{
+    if (isInMaintenanceMode(currentMillis))
+    {
+        return MAINTENANCE;
+    }
+    if (isIndNightMode())
+    {
+        return NIGHT;
+    }
+    return REGULAR;
+}
+
 trafficLane getCurrentTrafficLane()
 {
     if (isTrafficPresentOnLine1() && !isTrafficPresentOnLine2())
@@ -317,6 +403,28 @@ trafficLane getCurrentTrafficLane()
         return BOTH;
     }
     return NONE;
+}
+
+void setTrafficLightsMaintenance(unsigned long currentMillis)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Careful!!!");
+    lcd.setCursor(0, 1);
+    lcd.print("Traffic lights");
+    lcd.setCursor(0, 2);
+    lcd.print("Under maintenance");
+    setTrafficLight1BlinkToColor(currentMillis, YELLOW);
+    setTrafficLight2BlinkToColor(currentMillis, YELLOW);
+}
+
+void setTrafficLightsNight(unsigned long currentMillis)
+{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Careful!!!");
+    setTrafficLight1BlinkToColor(currentMillis, YELLOW);
+    setTrafficLight2BlinkToColor(currentMillis, RED);
 }
 
 void setTrafficLight1Sequence(unsigned long currentMillis)
@@ -361,8 +469,9 @@ void setTrafficLight2Sequence(unsigned long currentMillis)
 
 void setTrafficLightsSequence(unsigned long currentMillis)
 {
-    currentTrafficLane = getCurrentTrafficLane();
-    switch (currentTrafficLane)
+    lcd.clear();
+    trafficLane currentLane = getCurrentTrafficLane();
+    switch (currentLane)
     {
     case ONE:
         if (currentMillis - previousMillis >= 2 * SIXSECONDS)
@@ -424,11 +533,30 @@ void setup(void)
 
     // Communications
     configureCommunications();
+
+    delay(ONESECOND);
 }
 
 void loop(void)
 {
     // here is where you'd put code that needs to be running all the time.
     unsigned long currentMillis = millis();
-    setTrafficLightsSequence(currentMillis);
+    trafficLightsMode lightsMode = getCurrentTrafficLigthsMode(currentMillis);
+    lcd.setCursor(0, 0);
+    lcd.print(String("Welcome!"));
+    switch (lightsMode)
+    {
+    case REGULAR:
+        setTrafficLightsSequence(currentMillis);
+        break;
+    case MAINTENANCE:
+        setTrafficLightsMaintenance(currentMillis);
+        break;
+    case NIGHT:
+        setTrafficLightsNight(currentMillis);
+        break;
+    default:
+        setTrafficLightsSequence(currentMillis);
+        break;
+    }
 }
