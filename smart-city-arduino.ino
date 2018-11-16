@@ -1,6 +1,9 @@
 //Name:         smart-city-arduino
 //Description:  trafic light control with integrated traficc sensors, maintenance mode, midnight mode, and C02 sensors
-//Authors:
+//Author:       Harol Perez Giraldo
+//              Giancarlo Corredor
+//              Roberto Restrepo Rivera
+//              Sebastian Garces Carvajal
 //Date:         2018-11-19
 
 //Library definition
@@ -11,7 +14,7 @@
 //I/O pin labeling
 #define LDR1 0  //LDR Light sensor from traffic light 1 connected in pin A0
 #define LDR2 1  //LDR Light sensor from traffic light 2 connected in pin A1
-#define CO2 3   //CO2 sensor connected in pin A3
+#define CO2 2   //CO2 sensor connected in pin A2
 #define P1 37   //Traffic light 1 button connected in pin 37
 #define P2 36   //Traffic light 2 button connected in pin 36
 #define CNY1 35 //Infrared sensor 1 in traffic light 1 connected in pin 35
@@ -44,12 +47,10 @@ const unsigned long SEVENSECONDS = 7000;                                        
 const unsigned long EIGHTSECONDS = 8000;                                                 //eight seconds
 const unsigned long NINESECONDS = 9000;                                                  //nine seconds
 const unsigned long TENSECONDS = 10000;                                                  //ten seconds
-const unsigned long SEQUENCETIME = FIVESECONDS;                                          //Traffic lights sequence time
+const unsigned int READ_SAMPLE_INTERVAL = 50;                                            //define how many samples you are going to take in normal operation
+const unsigned int READ_SAMPLE_TIMES = 5;                                                //define the time interval(in milisecond) between each samples in normal operation
 
 //Variable definitions
-char comm = '\0'; //Command to test an actuator or sensor
-float volts = 0;  //Variable to store current voltage from CO2 sensor
-float co2 = 0;    //Variable to store CO2 value
 unsigned long previousMillis = 0;
 unsigned long previousMillisBlink = 0;
 unsigned long previousMillisMaintenance = 0;
@@ -520,6 +521,33 @@ void setTrafficLightsSequence(unsigned long currentMillis)
         setTrafficLight1Sequence(currentMillis);
         setTrafficLight2Sequence(currentMillis);
         break;
+    }
+}
+
+float readCO2()
+{
+    int i;
+    float v = 0;
+
+    for (i = 0; i < READ_SAMPLE_TIMES; i++)
+    {
+        v += analogRead(CO2);
+        delay(READ_SAMPLE_INTERVAL);
+    }
+    v = (v / READ_SAMPLE_TIMES) * 5 / 1024;
+    return v;
+}
+
+int getCO2Percentage()
+{
+    float volts = readCO2();
+    if ((volts / DC_GAIN) >= ZERO_POINT_VOLTAGE)
+    {
+        return -1;
+    }
+    else
+    {
+        return pow(10, ((volts / DC_GAIN) - CO2Curve[1]) / CO2Curve[2] + CO2Curve[0]);
     }
 }
 
