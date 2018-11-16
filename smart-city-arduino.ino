@@ -11,7 +11,7 @@
 //I/O pin labeling
 #define LDR1 0  //LDR Light sensor from traffic light 1 connected in pin A0
 #define LDR2 1  //LDR Light sensor from traffic light 2 connected in pin A1
-#define CO2 3   //CO2 sensor connected in pin A3
+#define CO2 2   //CO2 sensor connected in pin A3
 #define P1 37   //Traffic light 1 button connected in pin 37
 #define P2 36   //Traffic light 2 button connected in pin 36
 #define CNY1 35 //Infrared sensor 1 in traffic light 1 connected in pin 35
