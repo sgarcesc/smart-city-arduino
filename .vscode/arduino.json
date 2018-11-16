@@ -3,5 +3,5 @@
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
     "output": "./build",
-    "port": "COM3"
+    "port": "COM7"
 }
